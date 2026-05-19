@@ -53,36 +53,6 @@ class SplAtConv2d(Module):
             self.dropblock = DropBlock2D(dropblock_prob, 3)
         self.rsoftmax = rSoftMax(radix, groups)
 
-    def forward(self, x):
-        x = self.conv(x)
-        if self.use_bn:
-            x = self.bn0(x)
-        if self.dropblock_prob > 0.0:
-            x = self.dropblock(x)
-        x = self.relu(x)
-
-        batch, rchannel = x.shape[:2]
-        if self.radix > 1:
-            splited = torch.split(x, rchannel//self.radix, dim=1)
-            gap = sum(splited) 
-        else:
-            gap = x
-        gap = F.adaptive_avg_pool2d(gap, 1)
-        gap = self.fc1(gap)
-
-        if self.use_bn:
-            gap = self.bn1(gap)
-        gap = self.relu(gap)
-
-        atten = self.fc2(gap)
-        atten = self.rsoftmax(atten).view(batch, -1, 1, 1)
-
-        if self.radix > 1:
-            attens = torch.split(atten, rchannel//self.radix, dim=1)
-            out = sum([att*split for (att, split) in zip(attens, splited)])
-        else:
-            out = atten * x
-        return out.contiguous()
 
 class rSoftMax(nn.Module):
     def __init__(self, radix, cardinality):
@@ -90,15 +60,6 @@ class rSoftMax(nn.Module):
         self.radix = radix
         self.cardinality = cardinality
 
-    def forward(self, x):
-        batch = x.size(0)
-        if self.radix > 1:
-            x = x.view(batch, self.cardinality, self.radix, -1).transpose(1, 2)
-            x = F.softmax(x, dim=1)
-            x = x.reshape(batch, -1)
-        else:
-            x = torch.sigmoid(x)
-        return x
 
 
 class SplAtConv2d_dcn(Module):
@@ -143,41 +104,3 @@ class SplAtConv2d_dcn(Module):
             self.dropblock = DropBlock2D(dropblock_prob, 3)
         self.rsoftmax = rSoftMax(radix, groups)
 
-    def forward(self, x, offset_input):
-
-        if self.deform_modulated: 
-            offset_x, offset_y, mask = torch.chunk(offset_input, 3, dim=1)
-            offset = torch.cat((offset_x, offset_y), dim=1)
-            mask = mask.sigmoid() 
-            x = self.conv(x, offset, mask)
-        else:
-            x = self.conv(x, offset_input)
-
-        if self.use_bn:
-            x = self.bn0(x)
-        if self.dropblock_prob > 0.0:
-            x = self.dropblock(x)
-        x = self.relu(x)
-
-        batch, rchannel = x.shape[:2]
-        if self.radix > 1:
-            splited = torch.split(x, rchannel//self.radix, dim=1)
-            gap = sum(splited) 
-        else:
-            gap = x
-        gap = F.adaptive_avg_pool2d(gap, 1)
-        gap = self.fc1(gap)
-
-        if self.use_bn:
-            gap = self.bn1(gap)
-        gap = self.relu(gap)
-
-        atten = self.fc2(gap)
-        atten = self.rsoftmax(atten).view(batch, -1, 1, 1)
-
-        if self.radix > 1:
-            attens = torch.split(atten, rchannel//self.radix, dim=1)
-            out = sum([att*split for (att, split) in zip(attens, splited)])
-        else:
-            out = atten * x
-        return out.contiguous()

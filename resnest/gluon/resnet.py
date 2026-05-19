@@ -21,12 +21,6 @@ from .splat import SplitAttentionConv
 
 __all__ = ['ResNet', 'Bottleneck']
 
-def _update_input_size(input_size, stride):
-    sh, sw = (stride, stride) if isinstance(stride, int) else stride
-    ih, iw = (input_size, input_size) if isinstance(input_size, int) else input_size
-    oh, ow = math.ceil(ih / sh), math.ceil(iw / sw)
-    input_size = (oh, ow)
-    return input_size
 
 class Bottleneck(HybridBlock):
     """ResNet Bottleneck
@@ -86,45 +80,6 @@ class Bottleneck(HybridBlock):
         self.dilation = dilation
         self.strides = strides
 
-    def hybrid_forward(self, F, x):
-        residual = x
-
-        out = self.conv1(x)
-        out = self.bn1(out)
-        if self.dropblock_prob > 0:
-            out = self.dropblock1(out)
-        out = self.relu1(out)
-
-        if self.avd and self.avd_first:
-            out = self.avd_layer(out)
-
-        if self.use_splat:
-            out = self.conv2(out)
-            if self.dropblock_prob > 0:
-                out = self.dropblock2(out)
-        else:
-            out = self.conv2(out)
-            out = self.bn2(out)
-            if self.dropblock_prob > 0:
-                out = self.dropblock2(out)
-            out = self.relu2(out)
-
-        if self.avd and not self.avd_first:
-            out = self.avd_layer(out)
-
-        out = self.conv3(out)
-        out = self.bn3(out)
-
-        if self.downsample is not None:
-            residual = self.downsample(x)
-
-        if self.dropblock_prob > 0:
-            out = self.dropblock3(out)
-
-        out = out + residual
-        out = self.relu3(out)
-
-        return out
 
 class ResNet(HybridBlock):
     """ ResNet Variants Definations
@@ -251,89 +206,4 @@ class ResNet(HybridBlock):
                 self.drop = nn.Dropout(final_drop)
             self.fc = nn.Dense(in_units=512 * block.expansion, units=classes)
 
-    def _make_layer(self, stage_index, block, planes, blocks, strides=1, dilation=1,
-                    pre_dilation=1, avg_down=False, norm_layer=None,
-                    last_gamma=False,
-                    dropblock_prob=0, input_size=224, use_splat=False, avd=False):
-        downsample = None
-        if strides != 1 or self.inplanes != planes * block.expansion:
-            downsample = nn.HybridSequential(prefix='down%d_'%stage_index)
-            with downsample.name_scope():
-                if avg_down:
-                    if pre_dilation == 1:
-                        downsample.add(nn.AvgPool2D(pool_size=strides, strides=strides,
-                                                    ceil_mode=True, count_include_pad=False))
-                    elif strides==1:
-                        downsample.add(nn.AvgPool2D(pool_size=1, strides=1,
-                                                    ceil_mode=True, count_include_pad=False))
-                    else:
-                        downsample.add(nn.AvgPool2D(pool_size=pre_dilation*strides, strides=strides, padding=1,
-                                                    ceil_mode=True, count_include_pad=False))
-                    downsample.add(nn.Conv2D(channels=planes * block.expansion, kernel_size=1,
-                                             strides=1, use_bias=False, in_channels=self.inplanes))
-                    downsample.add(norm_layer(in_channels=planes * block.expansion,
-                                              **self.norm_kwargs))
-                else:
-                    downsample.add(nn.Conv2D(channels=planes * block.expansion,
-                                             kernel_size=1, strides=strides, use_bias=False,
-                                             in_channels=self.inplanes))
-                    downsample.add(norm_layer(in_channels=planes * block.expansion,
-                                              **self.norm_kwargs))
 
-        layers = nn.HybridSequential(prefix='layers%d_'%stage_index)
-        with layers.name_scope():
-            if dilation in (1, 2):
-                layers.add(block(planes, cardinality=self.cardinality,
-                                 bottleneck_width=self.bottleneck_width,
-                                 strides=strides, dilation=pre_dilation,
-                                 downsample=downsample, previous_dilation=dilation,
-                                 norm_layer=norm_layer, norm_kwargs=self.norm_kwargs,
-                                 last_gamma=last_gamma, dropblock_prob=dropblock_prob,
-                                 input_size=input_size, use_splat=use_splat, avd=avd, avd_first=self.avd_first,
-                                 radix=self.radix, in_channels=self.inplanes,
-                                 split_drop_ratio=self.split_drop_ratio))
-            elif dilation == 4:
-                layers.add(block(planes, cardinality=self.cardinality,
-                                 bottleneck_width=self.bottleneck_width,
-                                 strides=strides, dilation=pre_dilation,
-                                 downsample=downsample, previous_dilation=dilation,
-                                 norm_layer=norm_layer, norm_kwargs=self.norm_kwargs,
-                                 last_gamma=last_gamma, dropblock_prob=dropblock_prob,
-                                 input_size=input_size, use_splat=use_splat, avd=avd, avd_first=self.avd_first,
-                                 radix=self.radix, in_channels=self.inplanes,
-                                 split_drop_ratio=self.split_drop_ratio))
-            else:
-                raise RuntimeError("=> unknown dilation size: {}".format(dilation))
-
-            input_size = _update_input_size(input_size, strides)
-            self.inplanes = planes * block.expansion
-            for i in range(1, blocks):
-                layers.add(block(planes, cardinality=self.cardinality,
-                                 bottleneck_width=self.bottleneck_width, dilation=dilation,
-                                 previous_dilation=dilation, norm_layer=norm_layer,
-                                 norm_kwargs=self.norm_kwargs, last_gamma=last_gamma,
-                                 dropblock_prob=dropblock_prob, input_size=input_size,
-                                 use_splat=use_splat, avd=avd, avd_first=self.avd_first,
-                                 radix=self.radix, in_channels=self.inplanes,
-                                 split_drop_ratio=self.split_drop_ratio))
-
-        return layers
-
-    def hybrid_forward(self, F, x):
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
-
-        x = self.layer1(x)
-        x = self.layer2(x)
-        x = self.layer3(x)
-        x = self.layer4(x)
-
-        x = self.avgpool(x)
-        x = self.flat(x)
-        if self.drop is not None:
-            x = self.drop(x)
-        x = self.fc(x)
-
-        return x

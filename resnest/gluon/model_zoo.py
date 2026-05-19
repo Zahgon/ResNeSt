@@ -55,5 +55,5 @@ def get_model_list():
     list of str
         Entire list of model names in model_zoo.
     """
-    return models.keys()
+    pass
 

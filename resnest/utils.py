@@ -22,15 +22,7 @@ __all__ = ['unzip', 'download', 'mkdir', 'check_sha1', 'raise_num_file']
 def unzip(zip_file_path, root=os.path.expanduser('./')):
     """Unzips files located at `zip_file_path` into parent directory specified by `root`.
     """
-    folders = []
-    with zipfile.ZipFile(zip_file_path) as zf:
-        zf.extractall(root)
-        for name in zf.namelist():
-            folder = Path(name).parts[0]
-            if folder not in folders:
-                folders.append(folder)
-    folders = folders[0] if len(folders) == 1 else tuple(folders)
-    return folders
+    pass
 
 def download(url, path=None, overwrite=False, sha1_hash=None):
     """Download files from a given URL.
@@ -122,10 +114,4 @@ def check_sha1(filename, sha1_hash):
 def mkdir(path):
     """Make directory at the specified local path with special error handling.
     """
-    try:
-        os.makedirs(path)
-    except OSError as exc:  # Python >2.5
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
-            raise
+    pass

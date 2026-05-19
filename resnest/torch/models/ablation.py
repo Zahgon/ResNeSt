@@ -35,72 +35,9 @@ resnest_model_urls = {name: _url_format.format(name, short_hash(name)) for
     name in _model_sha256.keys()
 }
 
-def resnest50_fast_1s1x64d(pretrained=False, root='~/.encoding/models', **kwargs):
-    model = ResNet(Bottleneck, [3, 4, 6, 3],
-                   radix=1, groups=1, bottleneck_width=64,
-                   deep_stem=True, stem_width=32, avg_down=True,
-                   avd=True, avd_first=True, **kwargs)
-    if pretrained:
-        model.load_state_dict(torch.hub.load_state_dict_from_url(
-            resnest_model_urls['resnest50_fast_1s1x64d'], progress=True, check_hash=True))
-    return model
 
-def resnest50_fast_2s1x64d(pretrained=False, root='~/.encoding/models', **kwargs):
-    model = ResNet(Bottleneck, [3, 4, 6, 3],
-                   radix=2, groups=1, bottleneck_width=64,
-                   deep_stem=True, stem_width=32, avg_down=True,
-                   avd=True, avd_first=True, **kwargs)
-    if pretrained:
-        model.load_state_dict(torch.hub.load_state_dict_from_url(
-            resnest_model_urls['resnest50_fast_2s1x64d'], progress=True, check_hash=True))
-    return model
 
-def resnest50_fast_4s1x64d(pretrained=False, root='~/.encoding/models', **kwargs):
-    model = ResNet(Bottleneck, [3, 4, 6, 3],
-                   radix=4, groups=1, bottleneck_width=64,
-                   deep_stem=True, stem_width=32, avg_down=True,
-                   avd=True, avd_first=True, **kwargs)
-    if pretrained:
-        model.load_state_dict(torch.hub.load_state_dict_from_url(
-            resnest_model_urls['resnest50_fast_4s1x64d'], progress=True, check_hash=True))
-    return model
 
-def resnest50_fast_1s2x40d(pretrained=False, root='~/.encoding/models', **kwargs):
-    model = ResNet(Bottleneck, [3, 4, 6, 3],
-                   radix=1, groups=2, bottleneck_width=40,
-                   deep_stem=True, stem_width=32, avg_down=True,
-                   avd=True, avd_first=True, **kwargs)
-    if pretrained:
-        model.load_state_dict(torch.hub.load_state_dict_from_url(
-            resnest_model_urls['resnest50_fast_1s2x40d'], progress=True, check_hash=True))
-    return model
 
-def resnest50_fast_2s2x40d(pretrained=False, root='~/.encoding/models', **kwargs):
-    model = ResNet(Bottleneck, [3, 4, 6, 3],
-                   radix=2, groups=2, bottleneck_width=40,
-                   deep_stem=True, stem_width=32, avg_down=True,
-                   avd=True, avd_first=True, **kwargs)
-    if pretrained:
-        model.load_state_dict(torch.hub.load_state_dict_from_url(
-            resnest_model_urls['resnest50_fast_2s2x40d'], progress=True, check_hash=True))
-    return model
 
-def resnest50_fast_4s2x40d(pretrained=False, root='~/.encoding/models', **kwargs):
-    model = ResNet(Bottleneck, [3, 4, 6, 3],
-                   radix=4, groups=2, bottleneck_width=40,
-                   deep_stem=True, stem_width=32, avg_down=True,
-                   avd=True, avd_first=True, **kwargs)
-    if pretrained:
-        model.load_state_dict(torch.hub.load_state_dict_from_url(
-            resnest_model_urls['resnest50_fast_4s2x40d'], progress=True, check_hash=True))
-    return model
 
-def resnest50_fast_1s4x24d(pretrained=False, root='~/.encoding/models', **kwargs):
-    model = ResNet(Bottleneck, [3, 4, 6, 3],
-                   radix=1, groups=4, bottleneck_width=24,
-                   deep_stem=True, stem_width=32, avg_down=True,
-                   avd=True, avd_first=True, **kwargs)
-    if pretrained:
-        model.load_state_dict(torch.hub.load_state_dict_from_url(
-            resnest_model_urls['resnest50_fast_1s4x24d'], progress=True, check_hash=True))
-    return model

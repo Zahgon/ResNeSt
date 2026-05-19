@@ -27,19 +27,7 @@ PathManager = PathManagerBase()
 
 def accuracy(output, target, topk=(1,)):
     """Computes the accuracy over the k top predictions for the specified values of k"""
-    with torch.no_grad():
-        maxk = max(topk)
-        batch_size = target.size(0)
-
-        _, pred = output.topk(maxk, 1, True, True)
-        pred = pred.t()
-        correct = pred.eq(target.view(1, -1).expand_as(pred))
-
-        res = []
-        for k in topk:
-            correct_k = correct[:k].reshape(-1).float().sum(0, keepdim=True)
-            res.append(correct_k.mul_(100.0 / batch_size))
-        return res
+    pass
 
 
 class AverageMeter(object):
@@ -47,57 +35,21 @@ class AverageMeter(object):
     def __init__(self):
         self.reset()
 
-    def reset(self):
-        #self.val = 0
-        self.sum = 0
-        self.count = 0
 
     def update(self, val, n=1):
         #self.val = val
         self.sum += val * n
         self.count += n
 
-    @property
-    def avg(self):
-        avg = 0 if self.count == 0 else self.sum / self.count
-        return avg
 
 
-def torch_dist_sum(gpu, *args):
-    process_group = torch.distributed.group.WORLD
-    tensor_args = []
-    pending_res = []
-    for arg in args:
-        if isinstance(arg, torch.Tensor):
-            tensor_arg = arg.clone().reshape(-1).detach().cuda(gpu)
-        else:
-            tensor_arg = torch.tensor(arg).reshape(-1).cuda(gpu)
-        tensor_args.append(tensor_arg)
-        pending_res.append(torch.distributed.all_reduce(tensor_arg, group=process_group, async_op=True))
-    for res in pending_res:
-        res.wait()
-    return tensor_args
 
-def get_rank():
-    if torch.distributed.is_initialized():
-        rank = torch.distributed.get_rank()
-    else:
-        rank = 0
-    return rank
 
-def master_only(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        if get_rank() == 0:
-            return func(*args, **kwargs)
-        else:
-            return None
-    return wrapper
 
 @master_only
 def master_only_print(*args):
     """master-only print"""
-    print(*args)
+    pass
 
 class LR_Scheduler(object):
     """Learning Rate Scheduler
@@ -163,9 +115,6 @@ class LR_Scheduler(object):
         assert lr >= 0
         self._adjust_learning_rate(optimizer, lr)
 
-    def _adjust_learning_rate(self, optimizer, lr):
-        for i in range(len(optimizer.param_groups)):
-            optimizer.param_groups[i]['lr'] = lr
 
 
 class MixUpWrapper(object):
@@ -175,22 +124,6 @@ class MixUpWrapper(object):
         self.num_classes = num_classes
         self.device = device
 
-    def mixup_loader(self, loader):
-        def mixup(alpha, num_classes, data, target):
-            with torch.no_grad():
-                bs = data.size(0)
-                c = np.random.beta(alpha, alpha)
-                perm = torch.randperm(bs).cuda()
-
-                md = c * data + (1-c) * data[perm, :]
-                mt = c * target + (1-c) * target[perm, :]
-                return md, mt
-
-        for input, target in loader:
-            input, target = input.cuda(self.device), target.cuda(self.device)
-            target = torch.nn.functional.one_hot(target, self.num_classes)
-            i, t = mixup(self.alpha, self.num_classes, input, target)
-            yield i, t
 
     def __len__(self):
         return len(self.dataloader)
@@ -201,25 +134,12 @@ class MixUpWrapper(object):
 @master_only
 def save_checkpoint(state, directory, is_best, filename='checkpoint.pth'):
     """Saves checkpoint to disk"""
-    mkdir(directory)
-    filename = os.path.join(directory, filename)
-    with PathManager.open(filename, "wb") as f:
-        torch.save(state, f)
-    best_filename = os.path.join(directory, 'model_best.pth')
-    if is_best:
-        with PathManager.open(best_filename, "wb") as f:
-            torch.save(state, f)
+    pass
 
 # cache the opened file object, so that different calls to `setup_logger`
 # with the same file name can safely write to the same file.
-@functools.lru_cache(maxsize=None)
-def cached_log_stream(filename):
-    # use 1K buffer if writing to cloud storage
-    io = PathManager.open(filename, "a", buffering=1024 if "://" in filename else -1)
-    atexit.register(io.close)
-    return io
 
 def mkdir(path):
     """Make directory at the specified local path with special error handling.
     """
-    PathManager.mkdirs(path)
+    pass

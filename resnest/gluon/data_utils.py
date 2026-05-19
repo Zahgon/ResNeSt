@@ -52,12 +52,3 @@ class AugmentationBlock(Block):
         self.topil = ToPIL()
         self.tond = ToNDArray()
 
-    def forward(self, img):
-        img = self.topil(img)
-        policy = random.choice(self.policies)
-        for name, pr, level in policy:
-            if random.random() > pr:
-                continue
-            img = apply_augment(img, name, level)
-        img = self.tond(img)
-        return img

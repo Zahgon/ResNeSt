@@ -96,19 +96,6 @@ class BasicBlock(ResNetBlockBase):
             if layer is not None:  # shortcut can be None
                 weight_init.c2_msra_fill(layer)
 
-    def forward(self, x):
-        out = self.conv1(x)
-        out = F.relu_(out)
-        out = self.conv2(out)
-
-        if self.shortcut is not None:
-            shortcut = self.shortcut(x)
-        else:
-            shortcut = x
-
-        out += shortcut
-        out = F.relu_(out)
-        return out
 
 
 class BottleneckBlock(ResNetBlockBase):
@@ -238,31 +225,6 @@ class BottleneckBlock(ResNetBlockBase):
         # TODO this somehow hurts performance when training GN models from scratch.
         # Add it as an option when we need to use this code to train a backbone.
 
-    def forward(self, x):
-        out = self.conv1(x)
-        out = F.relu_(out)
-
-        if self.radix>1:
-            out = self.conv2(out)
-        else:
-            out = self.conv2(out)
-            out = F.relu_(out)
-
-        if self.avd:
-            out = self.avd_layer(out)
-
-        out = self.conv3(out)
-
-        if self.shortcut is not None:
-            if self.avg_down:
-                x = self.shortcut_avgpool(x) 
-            shortcut = self.shortcut(x)
-        else:
-            shortcut = x
-
-        out += shortcut
-        out = F.relu_(out)
-        return out
 
 
 class DeformBottleneckBlock(ResNetBlockBase):
@@ -399,40 +361,6 @@ class DeformBottleneckBlock(ResNetBlockBase):
         nn.init.constant_(self.conv2_offset.weight, 0)
         nn.init.constant_(self.conv2_offset.bias, 0)
 
-    def forward(self, x):
-        out = self.conv1(x)
-        out = F.relu_(out)
-
-        if self.radix>1:
-            offset = self.conv2_offset(out)
-            out = self.conv2(out, offset)
-        else:
-            if self.deform_modulated:
-                offset_mask = self.conv2_offset(out)
-                offset_x, offset_y, mask = torch.chunk(offset_mask, 3, dim=1)
-                offset = torch.cat((offset_x, offset_y), dim=1)
-                mask = mask.sigmoid()
-                out = self.conv2(out, offset, mask)
-            else:
-                offset = self.conv2_offset(out)
-                out = self.conv2(out, offset)
-            out = F.relu_(out)
-
-        if self.avd:
-            out = self.avd_layer(out)
-
-        out = self.conv3(out)
-
-        if self.shortcut is not None:
-            if self.avg_down:
-                x = self.shortcut_avgpool(x) 
-            shortcut = self.shortcut(x)
-        else:
-            shortcut = x
-
-        out += shortcut
-        out = F.relu_(out)
-        return out
 
 
 def make_stage(block_class, num_blocks, first_stride, **kwargs):
@@ -496,30 +424,8 @@ class BasicStem(nn.Module):
             )
             weight_init.c2_msra_fill(self.conv1)
 
-    def forward(self, x):
-        if self.deep_stem:
-            x = self.conv1_1(x)
-            x = F.relu_(x)
-            x = self.conv1_2(x)
-            x = F.relu_(x)
-            x = self.conv1_3(x)
-            x = F.relu_(x)
-        else:
-            x = self.conv1(x)
-            x = F.relu_(x)
-        x = F.max_pool2d(x, kernel_size=3, stride=2, padding=1)
-        return x
 
-    @property
-    def out_channels(self):
-        if self.deep_stem:
-            return self.conv1_3.out_channels
-        else:
-            return self.conv1.out_channels
 
-    @property
-    def stride(self):
-        return 4  # = stride 2 conv -> stride 2 max pool
 
 
 class ResNeSt(Backbone):
@@ -574,30 +480,7 @@ class ResNeSt(Backbone):
         for out_feature in self._out_features:
             assert out_feature in children, "Available children: {}".format(", ".join(children))
 
-    def forward(self, x):
-        outputs = {}
-        x = self.stem(x)
-        if "stem" in self._out_features:
-            outputs["stem"] = x
-        for stage, name in self.stages_and_names:
-            x = stage(x)
-            if name in self._out_features:
-                outputs[name] = x
-        if self.num_classes is not None:
-            x = self.avgpool(x)
-            x = torch.flatten(x, 1)
-            x = self.linear(x)
-            if "linear" in self._out_features:
-                outputs["linear"] = x
-        return outputs
 
-    def output_shape(self):
-        return {
-            name: ShapeSpec(
-                channels=self._out_feature_channels[name], stride=self._out_feature_strides[name]
-            )
-            for name in self._out_features
-        }
 
 
 @BACKBONE_REGISTRY.register()

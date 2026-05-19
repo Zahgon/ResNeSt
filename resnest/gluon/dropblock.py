@@ -23,23 +23,7 @@ class DropBlock(HybridBlock):
         self.padding = (pad_h//2, pad_h-pad_h//2, pad_w//2, pad_w-pad_w//2)
         self.dtype = 'float32'
 
-    def hybrid_forward(self, F, x):
-        if not mx.autograd.is_training() or self.drop_prob <= 0:
-            return x
-        gamma = self.drop_prob * (self.h * self.w) / (self.block_size ** 2) / \
-            ((self.w - self.block_size + 1) * (self.h - self.block_size + 1))
-        # generate mask
-        mask = F.random.uniform(0, 1, shape=(1, self.c, self.h, self.w), dtype=self.dtype) < gamma
-        mask = F.Pooling(mask, pool_type='max',
-                         kernel=(self.block_size, self.block_size), pad=self.padding)
-        mask = 1 - mask
-        y = F.broadcast_mul(F.broadcast_mul(x, mask),
-                            (1.0 * self.numel / mask.sum(axis=0, exclude=True).expand_dims(1).expand_dims(1).expand_dims(1)))
-        return y
 
-    def cast(self, dtype):
-        super(DropBlock, self).cast(dtype)
-        self.dtype = dtype
 
     def __repr__(self):
         reprstr = self.__class__.__name__ + '(' + \
@@ -53,8 +37,7 @@ def set_drop_prob(drop_prob, module):
         apply_drop_prob = partial(set_drop_prob, 0.1)
         net.apply(apply_drop_prob)
     """
-    if isinstance(module, DropBlock):
-        module.drop_prob = drop_prob
+    pass
 
 
 class DropBlockScheduler(object):

@@ -3,9 +3,6 @@ from fvcore.common.config import CfgNode as _CfgNode
 from .utils import PathManager
 
 class CN(_CfgNode):
-    @classmethod
-    def _open_cfg(cls, filename):
-        return PathManager.open(filename, "r")
 
 CfgNode = CN
 
@@ -49,5 +46,3 @@ _C.OPTIMIZER.WEIGHT_DECAY = 1e-4
 _C.OPTIMIZER.DISABLE_BN_WD = False
 _C.OPTIMIZER.WARMUP_EPOCHS = 0
 
-def get_cfg() -> CN:
-    return _C.clone()

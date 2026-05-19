@@ -39,32 +39,6 @@ class SplitAttentionConv(HybridBlock):
         self.channels = channels
         self.rsoftmax = rSoftMax(radix, groups)
 
-    def hybrid_forward(self, F, x):
-        x = self.conv(x)
-        if USE_BN:
-            x = self.bn(x)
-        x = self.relu(x)
-        if self.radix > 1:
-            splited = F.split(x, self.radix, axis=1)
-            gap = sum(splited)
-        else:
-            gap = x
-        gap = F.contrib.AdaptiveAvgPooling2D(gap, 1)
-        gap = self.fc1(gap)
-        if USE_BN:
-            gap = self.bn1(gap)
-        atten = self.relu1(gap)
-        if self.drop:
-            atten = self.drop(atten)
-        atten = self.fc2(atten).reshape((0, self.radix, self.channels))
-        atten = self.rsoftmax(atten).reshape((0, -1, 1, 1))
-        if self.radix > 1:
-            atten = F.split(atten, self.radix, axis=1)
-            outs = [F.broadcast_mul(att, split) for (att, split) in zip(atten, splited)]
-            out = sum(outs)
-        else:
-            out = F.broadcast_mul(atten, x)
-        return out
 
 
 class rSoftMax(nn.HybridBlock):
@@ -73,12 +47,4 @@ class rSoftMax(nn.HybridBlock):
         self.radix = radix
         self.cardinality = cardinality
 
-    def hybrid_forward(self, F, x):
-        if self.radix > 1:
-            x = x.reshape((0, self.cardinality, self.radix, -1)).swapaxes(1, 2)
-            x = F.softmax(x, axis=1)
-            x = x.reshape((0, -1))
-        else:
-            x = F.sigmoid(x)
-        return x
 
